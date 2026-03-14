@@ -2,7 +2,11 @@
 FROM node:20-slim AS jest-deps
 WORKDIR /jest
 RUN npm init -y > /dev/null 2>&1 && \
-    npm install jest --no-audit --no-fund
+    npm install jest \
+    @babel/preset-env \
+    @babel/plugin-transform-object-assign \
+    @babel/plugin-transform-runtime \
+    --no-audit --no-fund
 
 # ── Main stage ──
 FROM node:20-slim

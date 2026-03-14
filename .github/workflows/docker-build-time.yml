@@ -63,3 +63,9 @@ jobs:
           else
             echo "✅ Build completed in ${{ steps.timer_end.outputs.human }} — within the 4-minute limit."
           fi
+
+      - name: Verify test passes inside container
+        run: |
+          echo "Running jest test inside the built image..."
+          docker run --rm mathjs-exam:${{ github.sha }} npx jest test/unit-tests/function/utils/isZero.test.js
+          echo "✅ Test passed successfully!"

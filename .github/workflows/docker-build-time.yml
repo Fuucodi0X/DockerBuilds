@@ -1,0 +1,65 @@
+name: Docker Build Time
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Measure Docker Build Time
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Record build start time
+        id: timer_start
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        run: |
+          docker build --no-cache -t mathjs-exam:${{ github.sha }} .
+
+      - name: Record build end time & report
+        id: timer_end
+        run: |
+          END=$(date +%s)
+          START=${{ steps.timer_start.outputs.start }}
+          ELAPSED=$((END - START))
+          MINUTES=$((ELAPSED / 60))
+          SECONDS=$((ELAPSED % 60))
+
+          echo "Build finished."
+          echo "Total build time: ${MINUTES}m ${SECONDS}s (${ELAPSED} seconds)"
+
+          # Write a rich summary to the GitHub Actions job summary page
+          {
+            echo "## 🐳 Docker Build Time Report"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Image tag | \`mathjs-exam:${{ github.sha }}\` |"
+            echo "| Start (epoch) | \`${START}\` |"
+            echo "| End (epoch) | \`${END}\` |"
+            echo "| **Total build time** | **${MINUTES}m ${SECONDS}s (${ELAPSED}s)** |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Also expose the value for downstream steps / badge use
+          echo "elapsed=${ELAPSED}" >> "$GITHUB_OUTPUT"
+          echo "human=${MINUTES}m ${SECONDS}s" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if build exceeded 4 minutes
+        run: |
+          ELAPSED=${{ steps.timer_end.outputs.elapsed }}
+          MAX=240
+          if [ "$ELAPSED" -gt "$MAX" ]; then
+            echo "::error::Build time ${ELAPSED}s exceeded the ${MAX}s (4 min) limit!"
+            exit 1
+          else
+            echo "✅ Build completed in ${{ steps.timer_end.outputs.human }} — within the 4-minute limit."
+          fi
